@@ -1,0 +1,115 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+
+    <div class="container">
+        <h2>과제에용</h2>
+        <div class="todayDate">
+            <form name="todayDateForm" class="todayDateForm" action="http://127.0.0.1:8000/">
+                <input type="date" name="todayDateInput" class="todayDateInput">
+                <input type="button" onclick="clickedSearchBtn();" value="찾기" class="todayDateInput"/>
+            </form>
+        </div>
+    </div>
+
+    <div class="contents">
+
+    </div>
+
+</body>
+<script>
+    let lastDay = new Date((new Date()) - 1000*60*60*24).toISOString().substring(0,10);
+    let dateInput = document.querySelector(".todayDateInput");
+    dateInput.value = lastDay;
+    dateInput.setAttribute("max", lastDay);
+
+    let contentsBox = document.querySelector('.contents');
+
+    let movieCodeObject = {};
+    let movieNameArray = [];
+    let movieCodeArray = [];
+
+    const clickedSearchBtn = async() => {
+        await giveRankObject()
+        .then((data) => {
+            console.log(data);
+            let DtYear = data.boxOfficeResult.showRange.substring(0,4);
+            let DtMonth = data.boxOfficeResult.showRange.substring(4,6);
+            let DtDate = data.boxOfficeResult.showRange.substring(6,8);
+
+            let dateTitle = document.createTextNode(`${DtYear}년 ${DtMonth}월 ${DtDate}일 박스 오피스`);
+            let titleBox = document.createElement('h1');
+            let createDiv = document.createElement('div');
+
+            createDiv.classList.add("moviePackage");
+            contentsBox.appendChild(createDiv).appendChild(titleBox).appendChild(dateTitle);
+
+            for (let i = 0; i < 10; i++) {
+                let movieRankJson = data.boxOfficeResult.dailyBoxOfficeList[i].movieNm; 
+                let movieCodeJson = data.boxOfficeResult.dailyBoxOfficeList[i].movieCd; 
+
+                let text = document.createTextNode(`${i+1}위 `+movieRankJson);
+                let textBox = document.createElement('button');
+                contentsBox.appendChild(createDiv).appendChild(textBox).appendChild(text);
+                textBox.setAttribute("value", `${movieRankJson}`);
+                textBox.setAttribute("onclick", "clickedMovieBtn(This);");
+
+                movieNameArray[i] = `${movieRankJson}`;
+                movieCodeArray[i] = `${movieCodeJson}`;
+                movieCodeObject[movieNameArray[i]] = `${movieCodeArray[i]}`;
+            };
+            console.log(movieCodeObject);
+        })
+        .catch(error => console.log(`에러 발생 ${error.name}:${error.message}`));
+    };
+
+    const giveRankObject = async() => {
+        let date = document.todayDateForm.todayDateInput.value;
+        let targetDate = date.replaceAll("-","");
+        const key = "?key=fcad21068b1ade1058d712521da89180"; // api key를 가져왔습니다.
+        let targetTodayDate = `&targetDt=${targetDate}`;
+        const url = "http://www.kobis.or.kr/kobisopenapi/webservice/rest/boxoffice/searchDailyBoxOfficeList.json"
+        + key
+        + targetTodayDate; // 검색할 json파일 url 입니다
+        const response = await fetch(url);
+        return await response.json(); // text, arrayBuffer, blob, json, formData 종류가 있어요
+    }
+
+    const showMeTheCode = async(clickedValue) => {
+        let iWantedValue = clickedValue.value;
+        let Code = await CodeInMovieObj(iWantedValue);
+        let moreInfo = await searchMoreInfo(Code);
+        return await moreInfo;
+    }
+
+    const CodeInMovieObj = async(clickedValue) => {
+        let iWantedCode = movieCodeObject[clickedValue]
+        return await iWantedCode;
+    }
+
+    const searchMoreInfo = async() => {
+        let usingCode = `&movieCd${Code}`;
+        const infoUrl = "http://www.kobis.or.kr/kobisopenapi/webservice/rest/movie/searchMovieInfo.json"
+        + key
+        + usingCode;
+        const responseInfo = await fetch(infoUrl);
+        return await responseInfo.json();   
+    }
+
+    const clickedMovieBtn = async(clickedValue) => {
+        console.log(clickedValue);
+        await showMeTheCode(clickedValue)
+            .then((info)=>{
+                console.log(info);
+                console.log("이제 가공만이 남았다");
+            })
+    }
+</script>
+
+</html>
