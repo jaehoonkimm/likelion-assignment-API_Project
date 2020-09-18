@@ -1,29 +1,59 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="kr">
 <head>
+    <style>
+        body {
+            width: 100%;
+            height: 100%;
+            font-family: Jua;
+            background-color: lavender;
+        }
+        .chart {
+            display: inline-flex;
+            flex-direction: row;
+            padding-left: 8%;
+            width: 25px;
+            height: 75px;
+            margin-right: 2px;
+            background-color: coral;
+        }
+        .container {
+            text-align: center;
+            font-size: 250%;
+        }
+        .todayDate {
+            text-align: center;
+        }
+
+        
+    </style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="http://d3js.org/d3.v4.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
     <title>Document</title>
 </head>
 <body>
-
     <div class="container">
-        <h2>과제에용</h2>
+        <p style="font-size: 150%; font-weight: large;">[일일 영화 랭킹 그래프]</p>
         <div class="todayDate">
             <form name="todayDateForm" class="todayDateForm" action="http://127.0.0.1:8000/">
-                <input type="date" name="todayDateInput" class="todayDateInput">
-                <input type="button" onclick="clickedSearchBtn();" value="찾기" class="todayDateInput"/>
+                <input type="date" name="todayDateInput" class="todayDateInput" style="font-family: Jua; font-size: 75%;" />
+                <input type="button" onclick="clickedSearchBtn();" value="그래프 보기" class="todayDateInput" style="font-family: Jua; font-size: 75%;" />
+                <input type="reset" onclick ="setTimeout(location.reload(), 2000);" value="그래프 초기화" style="font-family: Jua; font-size: 75%;" />
             </form>
         </div>
     </div>
 
-    <div class="contents">
-
+    <div style="text-align: center; width: 100%; width: 100%;">
+        <div class="contents">
+        </div>
     </div>
 
 </body>
 <script>
+    
     let lastDay = new Date((new Date()) - 1000*60*60*24).toISOString().substring(0,10);
     let dateInput = document.querySelector(".todayDateInput");
     dateInput.value = lastDay;
@@ -34,82 +64,78 @@
     let movieCodeObject = {};
     let movieNameArray = [];
     let movieCodeArray = [];
-
+    let audiCntArray = [];
+    
     const clickedSearchBtn = async() => {
+        
         await giveRankObject()
         .then((data) => {
-            console.log(data);
             let DtYear = data.boxOfficeResult.showRange.substring(0,4);
             let DtMonth = data.boxOfficeResult.showRange.substring(4,6);
             let DtDate = data.boxOfficeResult.showRange.substring(6,8);
-
+            
             let dateTitle = document.createTextNode(`${DtYear}년 ${DtMonth}월 ${DtDate}일 박스 오피스`);
             let titleBox = document.createElement('h1');
             let createDiv = document.createElement('div');
-
+            let audiBox = document.createElement('h1');
+            
             createDiv.classList.add("moviePackage");
             contentsBox.appendChild(createDiv).appendChild(titleBox).appendChild(dateTitle);
-
+            
             for (let i = 0; i < 10; i++) {
                 let movieRankJson = data.boxOfficeResult.dailyBoxOfficeList[i].movieNm; 
                 let movieCodeJson = data.boxOfficeResult.dailyBoxOfficeList[i].movieCd; 
+                let movieAudiCnt = data.boxOfficeResult.dailyBoxOfficeList[i].audiCnt;
 
                 let text = document.createTextNode(`${i+1}위 `+movieRankJson);
-                let textBox = document.createElement('button');
+                let audi_text = document.createTextNode(movieAudiCnt);
+                let textBox = document.createElement('h3');
                 contentsBox.appendChild(createDiv).appendChild(textBox).appendChild(text);
                 textBox.setAttribute("value", `${movieRankJson}`);
                 textBox.setAttribute("onclick", "clickedMovieBtn(This);");
 
                 movieNameArray[i] = `${movieRankJson}`;
                 movieCodeArray[i] = `${movieCodeJson}`;
+                audiCntArray[i] = `${movieAudiCnt}`
                 movieCodeObject[movieNameArray[i]] = `${movieCodeArray[i]}`;
             };
+            console.log(audiCntArray);
+            console.log("구분");
             console.log(movieCodeObject);
         })
-        .catch(error => console.log(`에러 발생 ${error.name}:${error.message}`));
+        
+        await visualization()
+        
     };
 
     const giveRankObject = async() => {
+        
         let date = document.todayDateForm.todayDateInput.value;
         let targetDate = date.replaceAll("-","");
-        const key = "?key=fcad21068b1ade1058d712521da89180"; // api key를 가져왔습니다.
+        const key = "?key=fcad21068b1ade1058d712521da89180";
         let targetTodayDate = `&targetDt=${targetDate}`;
         const url = "http://www.kobis.or.kr/kobisopenapi/webservice/rest/boxoffice/searchDailyBoxOfficeList.json"
         + key
-        + targetTodayDate; // 검색할 json파일 url 입니다
+        + targetTodayDate; 
         const response = await fetch(url);
-        return await response.json(); // text, arrayBuffer, blob, json, formData 종류가 있어요
+        return await response.json(); 
     }
 
-    const showMeTheCode = async(clickedValue) => {
-        let iWantedValue = clickedValue.value;
-        let Code = await CodeInMovieObj(iWantedValue);
-        let moreInfo = await searchMoreInfo(Code);
-        return await moreInfo;
+const visualization = async() => {
+    data = []
+    for(let k = 0; k<10; k++) {
+        data.push(Number(audiCntArray[k]));
     }
+    d3.select('body').selectAll('p')
+    .data(data)
+    .enter()
+    .append('p')
+    .attr('class', 'chart')
+    .style('height', function(d) {
+        return d*0.013+'px';
+    })
 
-    const CodeInMovieObj = async(clickedValue) => {
-        let iWantedCode = movieCodeObject[clickedValue]
-        return await iWantedCode;
-    }
+}
 
-    const searchMoreInfo = async() => {
-        let usingCode = `&movieCd${Code}`;
-        const infoUrl = "http://www.kobis.or.kr/kobisopenapi/webservice/rest/movie/searchMovieInfo.json"
-        + key
-        + usingCode;
-        const responseInfo = await fetch(infoUrl);
-        return await responseInfo.json();   
-    }
-
-    const clickedMovieBtn = async(clickedValue) => {
-        console.log(clickedValue);
-        await showMeTheCode(clickedValue)
-            .then((info)=>{
-                console.log(info);
-                console.log("이제 가공만이 남았다");
-            })
-    }
 </script>
-
 </html>
